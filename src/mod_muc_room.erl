@@ -4044,6 +4044,11 @@ process_iq_disco_info(_From, get, Lang, StateData) ->
 		  {<<"type">>, <<"text">>},
 		  {<<"name">>, get_title(StateData)}],
 	     children = []},
+      #xmlel{name = <<"identity">>,
+        attrs =
+        [{<<"category">>, <<"pubsub">>},
+         {<<"type">>, <<"mep">>}],
+        children = []},
       #xmlel{name = <<"feature">>,
 	     attrs = [{<<"var">>, ?NS_VCARD}], children = []},
       #xmlel{name = <<"feature">>,
@@ -4059,8 +4064,17 @@ process_iq_disco_info(_From, get, Lang, StateData) ->
       ?CONFIG_OPT_TO_FEATURE((Config#config.moderated),
 			     <<"muc_moderated">>, <<"muc_unmoderated">>),
       ?CONFIG_OPT_TO_FEATURE((Config#config.password_protected),
-			     <<"muc_passwordprotected">>, <<"muc_unsecured">>)]
-       ++ iq_disco_info_extras(Lang, StateData),
+			     <<"muc_passwordprotected">>, <<"muc_unsecured">>),
+      #xmlel{name = <<"feature">>,
+           attrs = [{<<"var">>, <<(?NS_PUBSUB)/binary, "#auto-create">>}],
+           children = []},
+      #xmlel{name = <<"feature">>,
+           attrs = [{<<"var">>, <<(?NS_PUBSUB)/binary, "#publish">>}],
+           children = []},
+      #xmlel{name = <<"feature">>,
+           attrs = [{<<"var">>, <<(?NS_PUBSUB)/binary, "#access-presence">>}],
+           children = []}]
+           ++ iq_disco_info_extras(Lang, StateData),
      StateData}.
 
 iq_disco_info_extras(Lang, StateData) ->
