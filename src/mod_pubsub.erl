@@ -1886,6 +1886,7 @@ iq_disco_items(Host, Item, From) ->
 iq_sm(From, To, #iq{type = Type, sub_el = SubEl, xmlns = XMLNS, lang = Lang} = IQ) ->
     ServerHost = To#jid.lserver,
     LOwner = jlib:jid_tolower(jlib:jid_remove_resource(To)),
+    ?DEBUG("mod_pubsub:iq_sm ~p ~p",[ServerHost, LOwner]),
     Res = case XMLNS of
 	    ?NS_PUBSUB ->
 		iq_pubsub(LOwner, ServerHost, From, Type, SubEl, Lang);
@@ -1966,6 +1967,7 @@ iq_pubsub(Host, ServerHost, From, IQType, SubEl, Lang, Access, Plugins) ->
 		      create_node(Host, ServerHost, Node, From, Type, Access, Config)
 		end;
 	    {set, <<"publish">>} ->
+        ?DEBUG("publish ~p",[Node]),
 		case xml:remove_cdata(Els) of
 		  [#xmlel{name = <<"item">>, attrs = ItemAttrs,
 			  children = Payload}] ->
