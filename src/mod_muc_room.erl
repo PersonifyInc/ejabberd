@@ -647,7 +647,7 @@ normal_state({route, From, ToNick,
 		{ok, #user{nick = FromNick}} =
 		    (?DICT):find(jlib:jid_tolower(FromFull),
 				 StateData#state.users),
-		{ToJID2, Packet2} = handle_iq_vcard(FromFull, ToJID,
+		{ToJID2, Packet2} = handle_iq(FromFull, ToJID,
 						    StanzaId, NewId, Packet),
 		ejabberd_router:route(jlib:jid_replace_resource(StateData#state.jid,
 						       FromNick),
@@ -1197,6 +1197,33 @@ is_user_online_iq(StanzaId, JID, StateData)
     catch
       _:_ -> {is_user_online(JID, StateData), StanzaId, JID}
     end.
+
+%%%
+%%% Generic IQ Handler
+%%%
+handle_iq(From, ToJID, StanzaId, NewId, Packet) ->
+    ?DEBUG("generic IQ handler",[]),
+    case jlib:iq_query_info(Packet) of
+        #iq{type = Type, xmlns = XMLNS, lang = Lang,
+            sub_el = #xmlel{name = SubElName} = SubEl} = IQ ->
+
+        Res1 = case XMLNS of
+            ?NS_VCARD ->
+                handle_iq_vcard(From, ToJID, StanzaId, NewId, Packet);
+            ?NS_PUBSUB ->
+                handle_iq_pubsub(From, ToJID, StanzaId, NewId, IQ);
+            _ ->
+                ErrText = <<"Unsupported MUC IQ type">>,
+                Err = jlib:make_error_reply(Packet,
+                      ?ERRT_NOT_ACCEPTABLE(Lang, ErrText)),
+                {ToJID, Err}
+        end
+    end.
+
+handle_iq_pubsub(FromFull, ToJID, StanzaId, NewId, IQ) ->
+    ?DEBUG("MEP IQ handler",[]),
+    IQRes = mod_pubsub:iq_sm(FromFull, ToJID, IQ),
+    {ToJID, jlib:iq_to_xml(IQRes)}.
 
 handle_iq_vcard(FromFull, ToJID, StanzaId, NewId,
 		Packet) ->
