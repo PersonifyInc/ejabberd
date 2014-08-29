@@ -141,7 +141,7 @@ install: all
 	$(INSTALL) -m 644 ebin/*.beam $(BEAMDIR)
 	$(INSTALL) -m 644 deps/*/ebin/*.app $(BEAMDIR)
 	$(INSTALL) -m 644 deps/*/ebin/*.beam $(BEAMDIR)
-	rm -f $(BEAMDIR)/configure.beam
+	#rm -f $(BEAMDIR)/configure.beam
 	#
 	# ejabberd header files
 	$(INSTALL) -d $(INCLUDEDIR)
