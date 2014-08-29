@@ -786,12 +786,14 @@ send_loop(State) ->
 	  ServerHost = State#state.server_host,
 	  LJID = jlib:jid_tolower(JID),
 	  BJID = jlib:jid_remove_resource(LJID),
+      ?DEBUG("~n~n~n~n PUBSUB PRESENCE ~n~p~n~p~n",[Host, JID]),
 	  lists:foreach(fun (PType) ->
 				{result, Subscriptions} = node_action(Host,
 								      PType,
 								      get_entity_subscriptions,
 								      [Host,
 								       JID]),
+                ?DEBUG("~n~nplugin: ~p~nsubscriptions:~n~p~n",[PType, Subscriptions]),
 				lists:foreach(fun ({Node, subscribed, _,
 						    SubJID}) ->
 						      if (SubJID == LJID) or
@@ -862,13 +864,21 @@ send_loop(State) ->
 	  end,
 	  send_loop(State);
       {presence, User, Server, Resources, JID} ->
+      ?DEBUG("~n~n~n~n PUBSUB PRESENCE 2~n~p~n~p~n~p~n~p~n",[User, Server, Resources, JID]),
 	  spawn(fun () ->
 			Host = State#state.host,
-			Owner = jlib:jid_remove_resource(jlib:jid_tolower(JID)),
+            ConferenceHost = <<"conference.chat.vix.tv">>,%gen_mod:get_module_opt_host(From#jid.lserver, mod_muc, <<"conference.@HOST@">>),
+            Owner = case Server of
+                ConferenceHost ->
+                    jlib:jid_tolower(JID);
+                _ ->
+                    jlib:jid_remove_resource(jlib:jid_tolower(JID))
+            end,
 			lists:foreach(fun (#pubsub_node{nodeid = {_, Node},
 							type = Type,
 							id = NodeId,
 							options = Options}) ->
+                        ?DEBUG("~n~n==>NODE ~n~p~n~p~n",[Type, NodeId]),
 					      case get_option(Options,
 							      send_last_published_item)
 						  of
@@ -1173,6 +1183,7 @@ caps_update(_From, _To, _Feature) ->
     ok.
 
 presence_probe(#jid{luser = U, lserver = S, lresource = R} = JID, JID, Pid) ->
+    ?DEBUG("PRESENCE PROBE ~n~p~n~p~n~p~n~p~n",[U,S,R,JID]),
     presence(S, {presence, JID, Pid}),
     presence(S, {presence, U, S, [R], JID});
 presence_probe(#jid{luser = U, lserver = S}, #jid{luser = U, lserver = S}, _Pid) ->
@@ -1180,6 +1191,7 @@ presence_probe(#jid{luser = U, lserver = S}, #jid{luser = U, lserver = S}, _Pid)
     %% to not get duplicated last items
     ok;
 presence_probe(#jid{luser = U, lserver = S, lresource = R}, #jid{lserver = Host} = JID, _Pid) ->
+    ?DEBUG("PRESENCE PROBE 2 ~n~p~n~p~n~p~n~p~n",[U,S,R,JID]),
     presence(Host, {presence, U, S, [R], JID}).
 
 presence(ServerHost, Presence) ->
@@ -1210,6 +1222,7 @@ presence(ServerHost, Presence) ->
 %%
 
 out_subscription(User, Server, JID, subscribed) ->
+    ?DEBUG("~n~nOUT_SUBSCRIPTION~n~p~n~p~p~n~n",[User,Server,JID]),
     Owner = jlib:make_jid(User, Server, <<"">>),
     {PUser, PServer, PResource} = jlib:jid_tolower(JID),
     PResources = case PResource of
@@ -1884,8 +1897,13 @@ iq_disco_items(Host, Item, From) ->
     -> iq_result() | iq_error()
 ).
 iq_sm(From, To, #iq{type = Type, sub_el = SubEl, xmlns = XMLNS, lang = Lang} = IQ) ->
-    ServerHost = To#jid.lserver,
-    LOwner = jlib:jid_tolower(jlib:jid_remove_resource(To)),
+    ConferenceHost = <<"conference.chat.vix.tv">>,%gen_mod:get_module_opt_host(From#jid.lserver, mod_muc, <<"conference.@HOST@">>),
+    {LOwner, ServerHost} = case To#jid.lserver of
+        ConferenceHost ->
+            {jlib:jid_tolower(To),<<"chat.vix.tv">>};
+        _ ->
+            {jlib:jid_tolower(jlib:jid_remove_resource(To)),To#jid.lserver}
+    end,
     ?DEBUG("mod_pubsub:iq_sm ~p ~p",[ServerHost, LOwner]),
     Res = case XMLNS of
 	    ?NS_PUBSUB ->
@@ -2579,6 +2597,7 @@ create_node(Host, ServerHost, <<>>, Owner, Type, Access, Configuration) ->
 			  <<"nodeid-required">>)}
     end;
 create_node(Host, ServerHost, Node, Owner, GivenType, Access, Configuration) ->
+    ?DEBUG("~n~n~nCREATE NODE~n~n~p~n~p~n",[Node, GivenType]),
     Type = select_type(ServerHost, Host, Node, GivenType),
     ParseOptions = case xml:remove_cdata(Configuration) of
 		     [] -> {result, node_options(Type)};
@@ -2773,6 +2792,7 @@ delete_node(Host, Node, Owner) ->
 %%<li>The node does not exist.</li>
 %%</ul>
 subscribe_node(Host, Node, From, JID, Configuration) ->
+    ?DEBUG("~n~n~nSUBSCRIBE NODE~n~p~n~p~n~p~n~p~n",[Host, Node, From, JID]),
     SubOpts = case
 		pubsub_subscription:parse_options_xform(Configuration)
 		  of
@@ -2948,6 +2968,7 @@ publish_item(Host, ServerHost, Node, Publisher, <<>>, Payload, Access) ->
     publish_item(Host, ServerHost, Node, Publisher, uniqid(), Payload, Access);
 publish_item(Host, ServerHost, Node, Publisher, ItemId, Payload, Access) ->
     Action = fun (#pubsub_node{options = Options, type = Type, id = NodeId}) ->
+            ?DEBUG("publish action",[]),
 		     Features = features(Type),
 		     PublishFeature = lists:member(<<"publish">>, Features),
 		     PublishModel = get_option(Options, publish_model),
@@ -2991,6 +3012,7 @@ publish_item(Host, ServerHost, Node, Publisher, ItemId, Payload, Access) ->
 				    [#xmlel{name = <<"item">>,
 					    attrs = itemAttr(ItemId),
 					    children = []}]}]}],
+    ?DEBUG("publish 2: ~n~p~n~p~n",[Host, Node]),
     case transaction(Host, Node, Action, sync_dirty) of
 	{result, {TNode, {Result, Broadcast, Removed}}} ->
 	    NodeId = TNode#pubsub_node.id,
@@ -3003,6 +3025,7 @@ publish_item(Host, ServerHost, Node, Publisher, ItemId, Payload, Access) ->
 					broadcast -> Payload;
 					PluginPayload -> PluginPayload
 				end,
+                ?DEBUG("~npublish_items: broadcast~n publisher: ~p~n Payload: ~p~n",[Publisher,BroadcastPayload]),
 				broadcast_publish_item(Host, Node, NodeId, Type, Options,
 					Removed, ItemId, jlib:jid_tolower(Publisher),
 					BroadcastPayload);
@@ -3055,6 +3078,7 @@ publish_item(Host, ServerHost, Node, Publisher, ItemId, Payload, Access) ->
 		    {error, ?ERR_ITEM_NOT_FOUND}
 	    end;
 	Error ->
+        ?DEBUG("publish error?",[]),
 	    Error
     end.
 
@@ -3356,6 +3380,7 @@ send_items(Host, Node, NodeId, Type, {U, S, R} = LJID,
 		   end;
 	       _ -> []
 	     end,
+    ?DEBUG("~n~nToSend ~n~p~n~p~n~p~n~n",[ToSend,LJID,Host]),
     Stanza = case ToSend of
 	       [] ->
 		   undefined;
@@ -3372,21 +3397,34 @@ send_items(Host, Node, NodeId, Type, {U, S, R} = LJID,
 					attrs = nodeAttr(Node),
 					children = itemsEls(ToSend)}])
 	     end,
+    ?DEBUG("~n~nStanza ~n~p~n",[Stanza]),
     case {is_tuple(Host), Stanza} of
       {_, undefined} ->
+      ?DEBUG("~n~nproblem ~n",[]),
 	  ok;
       {false, _} ->
+      ?DEBUG("~n~nroute1 ~n",[]),
 	  ejabberd_router:route(service_jid(Host),
 				jlib:make_jid(LJID), Stanza);
       {true, _} ->
-	  case ejabberd_sm:get_session_pid(U, S, R) of
-	    C2SPid when is_pid(C2SPid) ->
-		ejabberd_c2s:broadcast(C2SPid,
-				       {pep_message,
-					<<((Node))/binary, "+notify">>},
-				       _Sender = service_jid(Host), Stanza);
-	    _ -> ok
-	  end
+      ?DEBUG("~n~nroute2 ~n",[]),
+      MucJID = service_jid(Host),
+      case MucJID#jid.lserver of
+        <<"conference.chat.vix.tv">> ->
+            ?DEBUG("broadcast to MUC room: ~p~n",[MucJID#jid.luser]),
+            mod_muc:mep_response(<<"conference.chat.vix.tv">>,
+                jlib:make_jid(Host),
+                Stanza);
+        _ ->
+    	  case ejabberd_sm:get_session_pid(U, S, R) of
+    	    C2SPid when is_pid(C2SPid) ->
+    		ejabberd_c2s:broadcast(C2SPid,
+    				       {pep_message,
+    					<<((Node))/binary, "+notify">>},
+    				       _Sender = service_jid(Host), Stanza);
+    	    _ -> ok
+    	  end
+      end
     end.
 
 %% @spec (Host, JID, Plugins) -> {error, Reason} | {result, Response}
@@ -4259,6 +4297,7 @@ event_stanza_withmoreels(Els, MoreEls) ->
 %%%%%% broadcast functions
 
 broadcast_publish_item(Host, Node, NodeId, Type, NodeOptions, Removed, ItemId, From, Payload) ->
+    ?DEBUG("broadcast_publish_item",[]),
     case get_collection_subscriptions(Host, Node) of
 	SubsByDepth when is_list(SubsByDepth) ->
 	    Content = case get_option(NodeOptions, deliver_payloads) of
@@ -4304,7 +4343,7 @@ broadcast_retract_items(Host, Node, NodeId, Type, NodeOptions, ItemIds, ForceNot
 		    Stanza = event_stanza(
 			[#xmlel{name = <<"items">>, attrs = nodeAttr(Node),
 				children = [#xmlel{name = <<"retract">>, attrs = itemAttr(ItemId)} || ItemId <- ItemIds]}]),
-		    broadcast_stanza(Host, Node, NodeId, Type,
+		    broadcast_stanza(Host, Host, Node, NodeId, Type,
 				     NodeOptions, SubsByDepth, items, Stanza, true),
 		    {result, true};
 		_ ->
@@ -4445,22 +4484,30 @@ broadcast_stanza({LUser, LServer, LResource}, Publisher, Node, NodeId, Type, Nod
     broadcast_stanza({LUser, LServer, LResource}, Node, NodeId, Type, NodeOptions, SubsByDepth, NotifyType, BaseStanza, SHIM),
     %% Handles implicit presence subscriptions
     SenderResource = user_resource(LUser, LServer, LResource),
-    case ejabberd_sm:get_session_pid(LUser, LServer, SenderResource) of
-	C2SPid when is_pid(C2SPid) ->
-	    Stanza = case get_option(NodeOptions, notification_type, headline) of
-		normal -> BaseStanza;
-		MsgType -> add_message_type(BaseStanza, iolist_to_binary(atom_to_list(MsgType)))
-		end,
-	    %% set the from address on the notification to the bare JID of the account owner
-	    %% Also, add "replyto" if entity has presence subscription to the account owner
-	    %% See XEP-0163 1.1 section 4.3.1
-	    ejabberd_c2s:broadcast(C2SPid,
-	        {pep_message, <<((Node))/binary, "+notify">>},
-	        _Sender = jlib:make_jid(LUser, LServer, <<"">>),
-	        _StanzaToSend = add_extended_headers(Stanza,
-	            _ReplyTo = extended_headers([jlib:jid_to_string(Publisher)])));
-	_ ->
-	    ?DEBUG("~p@~p has no session; can't deliver ~p to contacts", [LUser, LServer, BaseStanza])
+    ?DEBUG("broadcast_stanza: SenderResource: ~p~n~p~n~p~n",[LUser, LServer, Publisher]),
+    case LServer of
+        <<"conference.chat.vix.tv">> ->
+            ?DEBUG("broadcast to MUC room: ~p~n",[LUser]),
+            JID = jlib:make_jid(LUser, LServer, LResource),
+            mod_muc:mep_response(<<"conference.chat.vix.tv">>,JID,BaseStanza);
+        _ ->
+        case ejabberd_sm:get_session_pid(LUser, LServer, SenderResource) of
+    	C2SPid when is_pid(C2SPid) ->
+    	    Stanza = case get_option(NodeOptions, notification_type, headline) of
+    		normal -> BaseStanza;
+    		MsgType -> add_message_type(BaseStanza, iolist_to_binary(atom_to_list(MsgType)))
+    		end,
+    	    %% set the from address on the notification to the bare JID of the account owner
+    	    %% Also, add "replyto" if entity has presence subscription to the account owner
+    	    %% See XEP-0163 1.1 section 4.3.1
+    	    ejabberd_c2s:broadcast(C2SPid,
+    	        {pep_message, <<((Node))/binary, "+notify">>},
+    	        _Sender = jlib:make_jid(LUser, LServer, <<"">>),
+    	        _StanzaToSend = add_extended_headers(Stanza,
+    	            _ReplyTo = extended_headers([jlib:jid_to_string(Publisher)])));
+    	_ ->
+    	    ?DEBUG("~p@~p has no session; can't deliver ~p to contacts", [LUser, LServer, BaseStanza])
+        end
     end;
 broadcast_stanza(Host, _Publisher, Node, NodeId, Type, NodeOptions, SubsByDepth, NotifyType, BaseStanza, SHIM) ->
     broadcast_stanza(Host, Node, NodeId, Type, NodeOptions, SubsByDepth, NotifyType, BaseStanza, SHIM).
@@ -5111,6 +5158,7 @@ tree_call(Host, Function, Args) ->
 		 of
 	       [{nodetree, N}] -> N;
 	       _ ->
+            ?DEBUG("~n~nuse default nodetree~n~n",[]),
 		   jlib:binary_to_atom(<<(?TREE_PREFIX)/binary,
 					   (?STDTREE)/binary>>)
 	     end,

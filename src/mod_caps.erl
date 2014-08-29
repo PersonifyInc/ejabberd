@@ -256,6 +256,7 @@ c2s_presence_in(C2SState,
 				    _ -> {false, gb_trees:delete_any(LFrom, Rs)}
 				  end,
 	   if CapsUpdated ->
+          ?DEBUG("~n~nCapsUpdated~n~p~n",[Caps]),
 		  ejabberd_hooks:run(caps_update, To#jid.lserver,
 				     [From, To,
                                       get_features(To#jid.lserver, Caps)]);

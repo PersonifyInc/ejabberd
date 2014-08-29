@@ -43,6 +43,7 @@
          shutdown_rooms/1,
 	 process_iq_disco_items/4,
 	 broadcast_service_message/2,
+     mep_response/3,
          export/1,
          import/1,
          import/3,
@@ -125,6 +126,7 @@ shutdown_rooms(Host) ->
 %%    In this case, the mod_muc process died before the room processes
 %%    So the message sending must be catched
 room_destroyed(Host, Room, Pid, ServerHost) ->
+    mod_pubsub:remove_user(Room,Host), % teardown node
     catch gen_mod:get_module_proc(ServerHost, ?PROCNAME) !
 	    {room_destroyed, {Room, Host}, Pid},
     ok.
@@ -1100,6 +1102,20 @@ broadcast_service_message(Host, Msg) ->
 	      gen_fsm:send_all_state_event(
 		Pid, {service_message, Msg})
       end, get_vh_rooms(Host)).
+
+mep_response(Host, JID, Msg) ->
+    Room = JID#jid.luser,
+    ?DEBUG("MUC: MEP handler, room: ~p~n", [Room]),
+    case mnesia:dirty_read(muc_online_room, {Room, Host}) of
+        [] ->
+            false;
+        [R] ->
+            Pid = R#muc_online_room.pid,
+            ?DEBUG("MUC: send MEP response to process ~p~n", [Pid]),
+            gen_fsm:send_all_state_event(Pid, {mep_response, JID, Msg}),
+            ok
+    end.
+    
 
 
 get_vh_rooms(Host) ->

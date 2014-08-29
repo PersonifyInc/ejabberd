@@ -647,7 +647,8 @@ normal_state({route, From, ToNick,
 		{ok, #user{nick = FromNick}} =
 		    (?DICT):find(jlib:jid_tolower(FromFull),
 				 StateData#state.users),
-		{ToJID2, Packet2} = handle_iq(FromFull, ToJID,
+		{ToJID2, Packet2} = handle_iq(FromFull, jlib:jid_replace_resource(StateData#state.jid,
+                               ToNick),
 						    StanzaId, NewId, Packet),
 		ejabberd_router:route(jlib:jid_replace_resource(StateData#state.jid,
 						       FromNick),
@@ -708,6 +709,18 @@ handle_event({service_message, Msg}, _StateName,
     NSD = add_message_to_history(<<"">>,
 				 StateData#state.jid, MessagePkt, StateData),
     {next_state, normal_state, NSD};
+handle_event({mep_response, JID, Msg}, _StateName,
+         StateData) ->
+    ?DEBUG("mep_response from: ~n~p~n",[JID]),
+    lists:foreach(
+      fun({_LJID, Info}) ->
+          ejabberd_router:route(
+        JID,
+        Info#user.jid,
+        Msg)
+      end,
+      ?DICT:to_list(StateData#state.users)),
+    {next_state, normal_state, StateData};
 handle_event({destroy, Reason}, _StateName,
 	     StateData) ->
     {result, [], stop} = destroy_room(#xmlel{name =
@@ -1041,6 +1054,9 @@ get_participant_data(From, StateData) ->
 process_presence(From, Nick,
 		 #xmlel{name = <<"presence">>, attrs = Attrs} = Packet,
 		 StateData) ->
+    RoomJid = jlib:jid_replace_resource(StateData#state.jid, Nick),
+    %PubsubHost = gen_mod:get_module_opt_host(StateData#state.server_host, mod_pubsub, <<"pubsub.@HOST@">>),
+
     Type = xml:get_attr_s(<<"type">>, Attrs),
     Lang = xml:get_attr_s(<<"xml:lang">>, Attrs),
     StateData1 = case Type of
@@ -1217,12 +1233,17 @@ handle_iq(From, ToJID, StanzaId, NewId, Packet) ->
                 Err = jlib:make_error_reply(Packet,
                       ?ERRT_NOT_ACCEPTABLE(Lang, ErrText)),
                 {ToJID, Err}
-        end
+        end;
+
+        _ ->
+            Err = jlib:make_error_reply(Packet,
+                  ?ERR_NOT_ACCEPTABLE),
+            {ToJID, Err}
     end.
 
 handle_iq_pubsub(FromFull, ToJID, StanzaId, NewId, IQ) ->
-    ?DEBUG("MEP IQ handler",[]),
-    IQRes = mod_pubsub:iq_sm(FromFull, ToJID, IQ),
+    ?DEBUG("~nMEP IQ handler ~n~p ~n~p ~n",[FromFull, ToJID]),
+    IQRes = mod_pubsub:iq_sm(ToJID, ToJID, IQ),
     {ToJID, jlib:iq_to_xml(IQRes)}.
 
 handle_iq_vcard(FromFull, ToJID, StanzaId, NewId,
@@ -1919,8 +1940,20 @@ add_new_user(From, Nick,
 		       ejabberd_router:route(StateData#state.jid, From, WPacket);
 		   true -> ok
 		end,
+        RoomJid = jlib:jid_replace_resource(StateData#state.jid, Nick),
+        PubPid = case whereis(gen_mod:get_module_proc(StateData#state.server_host, ejabberd_mod_pubsub_loop)) of
+            undefined ->
+                ?DEBUG("unable to find pubsub loop process",[]),
+                ok;
+            Pid ->
+                Presence = {presence, RoomJid, Pid},
+                ?DEBUG("~n~nMUC presence ~n~p~n",[Presence]),
+                Pid ! Presence,
+                Pid
+        end,
 		send_existing_presences(From, NewState),
 		send_new_presence(From, NewState),
+        send_pubsub_presence_probes(RoomJid, NewState, PubPid),
 		Shift = count_stanza_shift(Nick, Els, NewState),
 		case send_history(From, Shift, NewState) of
 		  true -> ok;
@@ -2331,6 +2364,22 @@ send_existing_presences(ToJID, StateData) ->
 			  end
 		  end,
 		  (?DICT):to_list(StateData#state.nicks)).
+
+send_pubsub_presence_probes(FromJID, StateData, Pid) ->
+    LFromJID = jlib:jid_tolower(FromJID),
+    lists:foreach(fun ({ToNick, _Users}) ->
+            RoomJid = jlib:jid_replace_resource(StateData#state.jid, ToNick),
+            case RoomJid of
+                LFromJID -> ok;
+                _ ->
+                    Presence = {presence, FromJID#jid.luser, 
+                                FromJID#jid.lserver,
+                                [FromJID#jid.lresource], RoomJid},
+                    ?DEBUG("~n~nMUC presence probe ~n~p~n",[Presence]),
+                    Pid ! Presence
+            end
+        end,
+        (?DICT):to_list(StateData#state.nicks)).
 
 now_to_usec({MSec, Sec, USec}) ->
     (MSec * 1000000 + Sec) * 1000000 + USec.

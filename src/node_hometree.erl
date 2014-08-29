@@ -47,6 +47,7 @@
 -include("pubsub.hrl").
 
 -include("jlib.hrl").
+-include("logger.hrl").
 
 -behaviour(gen_pubsub_node).
 
@@ -533,6 +534,7 @@ publish_item(NodeIdx, Publisher, PublishModel, MaxItems, ItemId, Payload) ->
 		 _ -> get_state(NodeIdx, SubKey)
 	       end,
     Affiliation = GenState#pubsub_state.affiliation,
+    ?DEBUG("publish_item ~n~p~n~p~n~p~n~p~n",[GenKey, GenState, SubKey, SubState]),
     Subscribed = case PublishModel of
 		   subscribers ->
 		       is_subscribed(SubState#pubsub_state.subscriptions);

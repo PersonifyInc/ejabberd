@@ -66,8 +66,8 @@ terminate(Host, ServerHost) ->
 -spec(options/0 :: () -> NodeOptions::mod_pubsub:nodeOptions()).
 options() ->
     [{deliver_payloads, true}, {notify_config, false},
-     {notify_delete, false}, {notify_retract, false},
-     {purge_offline, false}, {persist_items, true},
+     {notify_delete, true}, {notify_retract, true},
+     {purge_offline, true}, {persist_items, true},
      {max_items, 1}, {subscribe, true},
      {access_model, presence}, {roster_groups_allowed, []},
      {publish_model, publishers},
