@@ -81,6 +81,22 @@
 		       Creator, Nick, DefRoomOpts])).
 -endif.
 
+-define(RFIELDT(Type, Var, Val),
+    #xmlel{name = <<"field">>,
+           attrs = [{<<"type">>, Type}, {<<"var">>, Var}],
+           children =
+           [#xmlel{name = <<"value">>, attrs = [],
+               children = [{xmlcdata, Val}]}]}).
+
+-define(RFIELD(Label, Var, Val),
+    #xmlel{name = <<"field">>,
+           attrs =
+           [{<<"label">>, translate:translate(Lang, Label)},
+            {<<"var">>, Var}],
+           children =
+           [#xmlel{name = <<"value">>, attrs = [],
+               children = [{xmlcdata, Val}]}]}).
+
 %%%----------------------------------------------------------------------
 %%% API
 %%%----------------------------------------------------------------------
@@ -2194,21 +2210,40 @@ send_new_presence(NJID, Reason, StateData) ->
 					   | Status2];
 				      false -> Status2
 				    end,
-			  Packet = xml:append_subtags(Presence,
-						      [#xmlel{name = <<"x">>,
-							      attrs =
-								  [{<<"xmlns">>,
-								    ?NS_MUC_USER}],
-							      children =
-								  [#xmlel{name =
-									      <<"item">>,
-									  attrs
-									      =
-									      ItemAttrs,
-									  children
-									      =
-									      ItemEls}
-								   | Status3]}]),
+              UserElem = #xmlel{name = <<"x">>,
+                                  attrs =
+                                  [{<<"xmlns">>,
+                                    ?NS_MUC_USER}],
+                                  children =
+                                  [#xmlel{name =
+                                          <<"item">>,
+                                      attrs
+                                          =
+                                          ItemAttrs,
+                                      children
+                                          =
+                                          ItemEls}
+                                   | Status3]},
+              PsyVars = case NJID == Info#user.jid of
+                    true -> [UserElem,
+                                #xmlel{name = <<"x">>,
+                                    attrs =
+                                    [{<<"xmlns">>,
+                                    <<"com.personify.data">>}],
+                                    children =
+                                    [?RFIELDT(<<"Media Server">>, <<"psy#server">>,
+                                          <<"rtmp.nuvixa.com">>),
+                                     ?RFIELDT(<<"Edge Application">>,
+                                         <<"psy#edge">>, <<"liveedge">>),
+                                     ?RFIELDT(<<"Origin Application">>,
+                                         <<"psy#origin">>,
+                                         <<"chat">>)]}
+                            ];
+                    false ->
+                        [UserElem]
+                end,
+
+			  Packet = xml:append_subtags(Presence, PsyVars),
 			  ejabberd_router:route(jlib:jid_replace_resource(StateData#state.jid,
 								 Nick),
 				       Info#user.jid, Packet)
@@ -4027,22 +4062,6 @@ process_iq_disco_info(_From, get, Lang, StateData) ->
 			     <<"muc_passwordprotected">>, <<"muc_unsecured">>)]
        ++ iq_disco_info_extras(Lang, StateData),
      StateData}.
-
--define(RFIELDT(Type, Var, Val),
-	#xmlel{name = <<"field">>,
-	       attrs = [{<<"type">>, Type}, {<<"var">>, Var}],
-	       children =
-		   [#xmlel{name = <<"value">>, attrs = [],
-			   children = [{xmlcdata, Val}]}]}).
-
--define(RFIELD(Label, Var, Val),
-	#xmlel{name = <<"field">>,
-	       attrs =
-		   [{<<"label">>, translate:translate(Lang, Label)},
-		    {<<"var">>, Var}],
-	       children =
-		   [#xmlel{name = <<"value">>, attrs = [],
-			   children = [{xmlcdata, Val}]}]}).
 
 iq_disco_info_extras(Lang, StateData) ->
     Len = (?DICT):size(StateData#state.users),
