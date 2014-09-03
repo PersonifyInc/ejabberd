@@ -511,9 +511,9 @@ do_route(From, To, {broadcast, _} = Packet) ->
             end
     end;
 do_route(From, To, #xmlel{} = Packet) ->
-    ?DEBUG("session manager~n\tfrom ~p~n\tto ~p~n\tpacket "
-	   "~P~n",
-	   [From, To, Packet, 8]),
+    %?DEBUG("session manager~n\tfrom ~p~n\tto ~p~n\tpacket "
+	%   "~P~n",
+	%   [From, To, Packet, 8]),
     #jid{user = User, server = Server,
 	 luser = LUser, lserver = LServer, lresource = LResource} = To,
     #xmlel{name = Name, attrs = Attrs} = Packet,

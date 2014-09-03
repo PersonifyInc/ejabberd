@@ -293,9 +293,9 @@ terminate(_Reason, _State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 do_route(From, To, Packet) ->
-    ?DEBUG("local route~n\tfrom ~p~n\tto ~p~n\tpacket "
-	   "~P~n",
-	   [From, To, Packet, 8]),
+    %?DEBUG("local route~n\tfrom ~p~n\tto ~p~n\tpacket "
+	%   "~P~n",
+	%   [From, To, Packet, 8]),
     if To#jid.luser /= <<"">> ->
 	   ejabberd_sm:route(From, To, Packet);
        To#jid.lresource == <<"">> ->
