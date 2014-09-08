@@ -177,16 +177,6 @@ install: all
 	$(INSTALL) -d -m 750 $(O_USER) $(LOGDIR)
 	$(CHOWN_COMMAND) -R @INSTALLUSER@ $(LOGDIR) >$(CHOWN_OUTPUT)
 	chmod -R 750 $(LOGDIR)
-	#
-	# Documentation
-	$(INSTALL) -d $(DOCDIR)
-	$(INSTALL) -m 644 doc/dev.html $(DOCDIR)
-	$(INSTALL) -m 644 doc/guide.html $(DOCDIR)
-	$(INSTALL) -m 644 doc/*.png $(DOCDIR)
-	[ -f doc/guide.pdf ] \
-		&& $(INSTALL) -m 644 doc/guide.pdf $(DOCDIR) \
-		|| echo "No doc/guide.pdf was built"
-	$(INSTALL) -m 644 COPYING $(DOCDIR)
 
 uninstall: uninstall-binary
 
