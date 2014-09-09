@@ -2292,7 +2292,7 @@ send_new_presence(NJID, Reason, StateData) ->
                                     <<"com.personify.data">>}],
                                     children =
                                     [?RFIELDT(<<"Media Server">>, <<"psy#server">>,
-                                          <<"rtmp.nuvixa.com">>),
+                                          application:get_env(ejabberd,psy_media,<<"localhost">>)),
                                      ?RFIELDT(<<"Edge Application">>,
                                          <<"psy#edge">>, <<"liveedge">>),
                                      ?RFIELDT(<<"Origin Application">>,
