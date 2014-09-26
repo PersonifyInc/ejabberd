@@ -105,6 +105,7 @@ start(Host, ServerHost, Access, Room, HistorySize, RoomShaper,
     ?SUPERVISOR_START.
 
 start(Host, ServerHost, Access, Room, HistorySize, RoomShaper, Opts) ->
+    ejabberd_hooks:run(muc_room_create, ServerHost, [Room]),
     Supervisor = gen_mod:get_module_proc(ServerHost, ejabberd_mod_muc_sup),
     supervisor:start_child(
       Supervisor, [Host, ServerHost, Access, Room, HistorySize, RoomShaper,
@@ -916,6 +917,7 @@ terminate(Reason, _StateName, StateData) ->
 		 end,
 		 [], StateData#state.users),
     add_to_log(room_existence, stopped, StateData),
+    ejabberd_hooks:run(muc_room_destroy, StateData#state.server_host, [StateData#state.room]),
     mod_muc:room_destroyed(StateData#state.host, StateData#state.room, self(),
 			   StateData#state.server_host),
     ok.
