@@ -1709,6 +1709,8 @@ remove_online_user(JID, StateData, Reason) ->
 		  (?DICT):store(Nick, U -- [LJID], StateData#state.nicks);
 	      error -> StateData#state.nicks
 	    end,
+    RoomJID = {StateData#state.room, StateData#state.host, Nick},
+    ejabberd_hooks:run(muc_room_remove_user, StateData#state.server_host, [RoomJID,LJID]),
     StateData#state{users = Users, nicks = Nicks}.
 
 filter_presence(#xmlel{name = <<"presence">>,
