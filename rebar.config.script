@@ -49,15 +49,15 @@ SrcDirs = lists:foldl(
                     Acc
             end, [], Cfg),
 
-Deps = [{p1_cache_tab, ".*", {git, "git://github.com/processone/cache_tab"}},
-        {p1_tls, ".*", {git, "git://github.com/processone/tls"}},
-        {p1_stringprep, ".*", {git, "git://github.com/processone/stringprep"}},
-        {p1_xml, ".*", {git, "git://github.com/processone/xml"}},
-	{esip, ".*", {git, "git://github.com/processone/p1_sip"}},
-	{p1_stun, ".*", {git, "git://github.com/processone/stun"}},
-        {p1_yaml, ".*", {git, "git://github.com/processone/p1_yaml"}},
-        {xmlrpc, ".*", {git, "git://github.com/rds13/xmlrpc"}},
-        {p1_utils, ".*", {git, "git://github.com/processone/p1_utils"}}],
+Deps = [{p1_cache_tab, ".*", {git, "git://github.com/processone/cache_tab", "a361d1489458237a46dc1c8c8e30b37b91dd0852"}},
+        {p1_tls, ".*", {git, "git://github.com/processone/tls", "465de71609bb517d6ab2e9878444e40e494ce789"}},
+        {p1_stringprep, ".*", {git, "git://github.com/processone/stringprep", "9e9e0f8dbe6a70ef36e1d4436b458ca5a77fbcfb"}},
+        {p1_xml, ".*", {git, "git://github.com/processone/xml", "da2ebeb98d1d47105559844f8588610f0d031123"}},
+	{esip, ".*", {git, "git://github.com/processone/p1_sip", "bba44591c02221b93cbc4e0958efffe0b05405a3"}},
+	{p1_stun, ".*", {git, "git://github.com/processone/stun", "a7c07b69c89c67a45c69c7dfcd17ca986afd9e9b"}},
+        {p1_yaml, ".*", {git, "git://github.com/processone/p1_yaml", "236b9435ad3731dbab637a16616167e09c074183"}},
+        {xmlrpc, ".*", {git, "git://github.com/rds13/xmlrpc", "9e9be055c248be7bfb87b04dd9c444bc46e54912"}},
+        {p1_utils, ".*", {git, "git://github.com/processone/p1_utils", "9e646e4ff343e8e902410fa1fe28803202b7e340"}}],
 
 ConfigureCmd = fun(Pkg, Flags) ->
                        {'get-deps',
@@ -88,7 +88,7 @@ CfgDeps = lists:flatmap(
                ({pam, true}) ->
                     [{p1_pam, ".*", {git, "git://github.com/processone/epam"}}];
                ({zlib, true}) ->
-                    [{p1_zlib, ".*", {git, "git://github.com/processone/zlib"}}];
+                    [{p1_zlib, ".*", {git, "git://github.com/processone/zlib", "52e82bbc12258ca17ea7ed9b5d10eca60c3db006"}}];
                ({riak, true}) ->
                     [{riakc, ".*",
 		      {git, "git://github.com/basho/riak-erlang-client",
@@ -98,7 +98,7 @@ CfgDeps = lists:flatmap(
                ({iconv, true}) ->
                     [{p1_iconv, ".*", {git, "git://github.com/processone/eiconv"}}];
                ({lager, true}) ->
-                    [{lager, ".*", {git, "git://github.com/basho/lager"}}];
+                    [{lager, ".*", {git, "git://github.com/basho/lager", "e88c9160aee47d3fdfc6560fc281138c5df2ec62"}}];
                ({lager, false}) ->
                     [{p1_logger, ".*", {git, "git://github.com/processone/p1_logger"}}];
                (_) ->
